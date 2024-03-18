@@ -57,6 +57,7 @@ class VideoFiringRateEncoder(nn.Module):
         self.nonlinearity_type = nonlinearity_type
         self.twoD_core = twoD_core
 
+        self.rate2fluo = Rate2Fluo(n_neurons=3175).to('cuda')
     def forward(
         self,
         inputs,
@@ -114,6 +115,13 @@ class VideoFiringRateEncoder(nn.Module):
             x = self.nonlinearity_fn(x)
 
         x = x.reshape(((batch_size, time_points) + x.size()[1:]))
+        # return x
+        n_neurons = x.shape[2]
+        # self.rate2fluo = Rate2Fluo(time_points=time_points, n_neurons=n_neurons, batch_size=batch_size).to('cuda')
+
+        x = self.rate2fluo(lmbda = x.permute(2, 0, 1).contiguous().view(-1, 1, time_points), time_points=time_points, batch_size=batch_size)
+
+        # x = x.view(n_neurons, batch_size, time_points).permute(1, 2, 0)
         return x
 
     def regularizer(
@@ -130,3 +138,42 @@ class VideoFiringRateEncoder(nn.Module):
         if self.modulator:
             reg += self.modulator.regularizer(data_key=data_key)
         return reg
+
+class Rate2Fluo(nn.Module):
+    def __init__(self, n_neurons=3175):
+        super().__init__()
+        # self.time_points = time_points
+        self.n_neurons = n_neurons
+        # self.batch_size = batch_size
+        self.alpha = nn.Parameter(torch.rand(n_neurons))
+        self.beta = nn.Parameter(torch.rand(n_neurons))
+
+        nn.init.constant_(self.alpha, 1)
+        nn.init.constant_(self.beta, 0)
+
+    def forward(self, lmbda, time_points, batch_size):
+
+        Ct = nn.functional.conv1d(lmbda.float(), gcamp8.view(1, 1, -1).float(), padding = 20)
+
+        Ct = Ct[:, :, :time_points]
+
+        Ct = Ct.view(self.n_neurons, batch_size, time_points).permute(1, 2, 0)
+
+        Ft = torch.einsum('ijk,k->ijk', Ct, self.alpha) + self.beta
+        # Ft = self.alpha * Ct + self.beta
+
+        return Ft
+    
+num_timesteps = 300
+time_per_timestep = 33.33
+timestep_1 = 20
+tau = 149
+
+time_values = np.arange(0, num_timesteps * time_per_timestep, time_per_timestep)
+
+decay_values = np.exp(-(time_values - timestep_1 * time_per_timestep) / tau)
+decay_values[timestep_1:] *= 1
+decay_values[:timestep_1] *= 0
+
+gcamp8_np_flip = np.flip(decay_values[20:40])
+gcamp8 = torch.from_numpy(gcamp8_np_flip.copy()).to('cuda')
