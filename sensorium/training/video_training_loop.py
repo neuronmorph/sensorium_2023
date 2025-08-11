@@ -51,6 +51,8 @@ def standard_trainer(
     chpt_save_step=15,
     deeplake_ds=False,
     validation_str = "oracle", # or "validation"
+    T_max_epochs = 100,
+    optimizer_type = "AdamW",
     **kwargs,
 ):
     """
@@ -135,7 +137,11 @@ def standard_trainer(
 
     n_iterations = len(LongCycler(dataloaders["train"]))
 
-    optimizer = torch.optim.AdamW(model.parameters(), lr=lr_init)
+    # optimizer = torch.optim.AdamW(model.parameters(), lr=lr_init)
+    if optimizer_type == "Adam":
+        optimizer = torch.optim.Adam(model.parameters(), lr=lr_init)
+    elif optimizer_type == "AdamW":
+        optimizer = torch.optim.AdamW(model.parameters(), lr=lr_init)
 
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
         optimizer,
@@ -209,6 +215,13 @@ def standard_trainer(
             batch_no_tot += 1
             batch_args = list(data)
 
+            if batch_no_tot%n_iterations==0:
+                # cycle_start, cycle_number = update_tau_cyclic_increasing(model, epoch, data_key, cycle_start=cycle_start, cycle_number=cycle_number, T_0=20)
+                # update_tau_cyclic(model, epoch, data_key, T_cycle=20)
+                update_tau_cosine_epoch(model, epoch, data_key, T_max_epochs=T_max_epochs)
+            # update_tau_inverse_time(model, batch_no_tot, data_key, interval = n_iterations)
+            # print(f"batch_no_tot: {batch_no_tot}, tau: {model.readout[data_key].tau.item()}")
+
             batch_kwargs = data._asdict() if not isinstance(data, dict) else data
 
             loss = full_objective(
@@ -269,6 +282,7 @@ def standard_trainer(
                 "validation_correlation": validation_correlation,
                 "Epoch validation loss": val_loss,
                 "Epoch": epoch,
+                "tau": model.readout[data_key].tau.item(),
             }
             wandb.log(wandb_dict)
         model.train()
@@ -301,3 +315,56 @@ def standard_trainer(
     #        os.remove(f"{checkpoint_save_path}{f2c}")
 
     return score, output, model.state_dict()
+
+def update_tau_exponential(model, step, data_key, start_tau=10.0, min_tau=0.5, decay_rate=3e-5, interval=200):
+    if step % interval == 0:
+        new_tau = max(min_tau, start_tau * torch.exp(torch.tensor(-decay_rate * step)).item())
+        model.readout[data_key].tau.copy_(torch.tensor(new_tau, dtype=torch.float32))
+
+def update_tau_inverse_time(model, step, data_key, start_tau=10.0, min_tau=0.5, k=1e-4, interval=200):
+    if step % interval == 0:
+        new_tau = max(min_tau, start_tau / (1 + k * step))
+        model.readout[data_key].tau.copy_(torch.tensor(new_tau, dtype=torch.float32))
+
+def update_tau_cosine_epoch(model, epoch, data_key, T_max_epochs=100, tau_max=10.0, tau_min=0.5):
+    t = min(epoch, T_max_epochs)
+    cos_input = torch.tensor(torch.pi * t / T_max_epochs)
+    new_tau = tau_min + 0.5 * (tau_max - tau_min) * (1 + torch.cos(cos_input))
+    model.readout[data_key].tau.copy_(new_tau)
+
+def update_tau_cyclic(model, epoch, data_key, T_cycle=20, tau_max=10.0, tau_min=0.5):
+    """
+    Cyclic cosine annealing for tau, restarted every T_cycle epochs.
+    It is sort of like cosine annealing but every T_cycle epochs
+    """
+    t_mod = epoch % T_cycle
+    cos_input = torch.tensor(torch.pi * t_mod / T_cycle)
+    new_tau = tau_min + 0.5 * (tau_max - tau_min) * (1 + torch.cos(cos_input))
+    model.readout[data_key].tau.copy_(new_tau)
+
+def update_tau_cyclic_increasing(
+    model,
+    epoch,
+    data_key,
+    cycle_start,
+    cycle_number,
+    T_0=20,
+    tau_max=10.0,
+    tau_min=0.5,
+):
+    T_cycle = T_0 * (2 ** cycle_number)
+    t = epoch - cycle_start
+
+    if t >= T_cycle:
+        # Begin a new cycle
+        cycle_number += 1
+        cycle_start = epoch
+        T_cycle = T_0 * (2 ** cycle_number)
+        t = 0
+
+    # Cosine annealing within current cycle
+    cos_input = torch.tensor(torch.pi * t / T_cycle)
+    new_tau = tau_min + 0.5 * (tau_max - tau_min) * (1 + torch.cos(cos_input))
+    model.readout[data_key].tau.copy_(new_tau)
+
+    return cycle_start, cycle_number
