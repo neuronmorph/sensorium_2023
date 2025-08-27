@@ -248,9 +248,13 @@ def get_signal_correlations(
             for temp in evaluation_hashes_unique
         ]
         
-        # in some cases, each repeat may be presented with distinct time frames (1_frame or 2_frame difference)
         for num in range(len(responses_align)):
-            frames_per_repeat = np.array([ii.shape[1] for ii in responses_align[num]])
+            if type(responses_align[num]) is np.ndarray:
+                responses_align[num] = tuple([responses_align[num]])
+                predictions_align[num] = tuple([predictions_align[num]])
+        # in some cases, each repeat may be presented with distinct time frames (1_frame or 2_frame difference)
+        frames_per_repeat = np.array([ii.shape[1] for num in range(len(responses_align)) for ii in responses_align[num]])
+        for num in range(len(responses_align)):
             if len(np.unique(frames_per_repeat))>1: # number of time frames for each repeat are different
                 print (f'Warning: responses_align[{num}] have multiple time frames for repeats: {frames_per_repeat}')
                 responses_align[num]   = [ii[:,-np.min(frames_per_repeat):] for ii in responses_align[num]]
