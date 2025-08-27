@@ -9,7 +9,8 @@ import operator
 
 
 def model_predictions(
-    model, dataloader, data_key, device="cpu", skip=50, deeplake_ds=False
+    model, dataloader, data_key, device="cpu", skip=50, deeplake_ds=False,
+    pad_responses=False,
 ):
     """
     computes model predictions for a given dataloader and a model
@@ -36,6 +37,17 @@ def model_predictions(
                 if not isinstance(batch, dict)
                 else (batch["videos"], batch["responses"])
             )
+        if pad_responses:
+            # images shape: [b, c, t, h, w]
+            temp_mean_image_along_t = torch.mean(images, dim=2, keepdim=True).repeat(1, 1, 50, 1, 1)
+            images = torch.cat((temp_mean_image_along_t, images), dim=2)
+            
+            # responses shape: [b, n, t]    `n` means neurons
+            responses = torch.nn.functional.pad(responses, (skip,0), value=1e-8, mode='constant')
+
+            # batch_kwargs['pupil_center'], with shape [b, c, t], is also passed as parameter in the model() inference
+            # this means that it has to be padded as well
+            batch_kwargs['pupil_center'] = torch.nn.functional.pad(batch_kwargs['pupil_center'], (skip,0), value=1e-8, mode='constant')
 
         with torch.no_grad():
             resp = responses.detach().cpu().numpy()[:, :, skip:]
@@ -208,6 +220,7 @@ def get_signal_correlations(
     device="cpu",
     as_dict=False,
     per_neuron=True,
+    pad_responses=False,
 ):
     """
     Similar as `get_correlations` but first responses and predictions are averaged across repeats
@@ -237,7 +250,7 @@ def get_signal_correlations(
             evaluation_hashes_unique = evaluation_hashes_unique_temp
 
         responses, predictions = model_predictions(
-            model, dataloader, data_key=data_key, device=device
+            model, dataloader, data_key=data_key, device=device, pad_responses=pad_responses
         )
         responses_align = [
             operator.itemgetter(*(np.where(tier_hashes == temp)[0]))(responses)
