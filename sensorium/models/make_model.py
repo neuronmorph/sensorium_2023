@@ -23,6 +23,7 @@ def make_video_model(
     core_type,
     readout_dict,
     readout_type,
+    sparse_readout_type,
     use_gru,
     gru_dict,
     use_shifter,
@@ -53,6 +54,17 @@ def make_video_model(
             has to have all these ids and cannot have any more.
         all other args: See Documentation of Stacked2dCore in neuralpredictors.layers.cores and
             PointPooled2D in neuralpredictors.layers.readouts
+        sparse_readout_type: One of following:
+                    "unconstrained": FullGaussian2d,
+                    "gumbel_softmax_scheduled_tau": FullGaussian2d_Gumbel_softmax_scheduled_tau,
+                    "reinforce": FullGaussian2d_REINFORCE,
+                    "3d_sample_grid": FullGaussian_3d_sample_grid,
+                    "learnable_z_tanh": FullGaussian2d_learnable_z_tanh,
+                    "learnable_z": FullGaussian2d_learnable_z,
+                    "gumbel_softmax": FullGaussian2d_Gumbel_softmax,
+                    "gumbel_softmax_learnable_tau": FullGaussian2d_Gumbel_softmax_learnable_tau,
+                    "adaptive_reg": FullGaussian2d_adaptive_reg,
+    }
     Returns: An initialized model which consists of model.core and model.readout
     """
 
@@ -150,7 +162,7 @@ def make_video_model(
         readout_dict["grid_mean_predictor"] = grid_mean_predictor
         readout_dict["grid_mean_predictor_type"] = grid_mean_predictor_type
         readout_dict["source_grids"] = source_grids
-        readout = MultipleFullGaussian2d(**readout_dict)
+        readout = MultipleFullGaussian2d(sparse_readout_type, **readout_dict)
 
     elif readout_type == "factorised":
         if readout_dict["bias"]:
