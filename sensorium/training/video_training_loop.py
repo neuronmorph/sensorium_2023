@@ -1822,10 +1822,18 @@ def standard_trainer_adaptive_reg(
 
     n_iterations = len(LongCycler(dataloaders["train"]))
 
+    if detach_core:
+        params_to_optimize = [
+        param for name, param in model.named_parameters()
+        if 'core' not in name
+        ]
+    else:
+        params_to_optimize = model.parameters()
+
     if optimizer_type == "Adam":
-        optimizer = torch.optim.Adam(model.parameters(), lr=lr_init)
+        optimizer = torch.optim.Adam(params_to_optimize, lr=lr_init)
     elif optimizer_type == "AdamW":
-        optimizer = torch.optim.AdamW(model.parameters(), lr=lr_init)
+        optimizer = torch.optim.AdamW(params_to_optimize, lr=lr_init)
 
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
         optimizer,
@@ -1987,8 +1995,8 @@ def standard_trainer_adaptive_reg(
     output["validation_corr"] = validation_correlation
 
     score = np.mean(validation_correlation)
-    if use_wandb:
-        wandb.finish()
+    # if use_wandb:
+    #     wandb.finish()
 
     # removing the checkpoints except the last one
     # yqiu, comment these lines
