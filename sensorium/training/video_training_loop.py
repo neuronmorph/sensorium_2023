@@ -297,8 +297,8 @@ def standard_trainer(
     output["validation_corr"] = validation_correlation
 
     score = np.mean(validation_correlation)
-    # if use_wandb:
-    #     wandb.finish()
+    if use_wandb:
+        wandb.finish()
 
     # removing the checkpoints except the last one
     # yqiu, comment these lines
@@ -1700,8 +1700,8 @@ def standard_trainer_reinforce_max_entropy(
     output["validation_corr"] = validation_correlation
 
     score = np.mean(validation_correlation)
-    # if use_wandb:
-    #     wandb.finish()
+    if use_wandb:
+        wandb.finish()
 
     return score, output, model.state_dict()
 
@@ -2001,8 +2001,8 @@ def standard_trainer_adaptive_reg(
     output["validation_corr"] = validation_correlation
 
     score = np.mean(validation_correlation)
-    # if use_wandb:
-    #     wandb.finish()
+    if use_wandb:
+        wandb.finish()
 
     # removing the checkpoints except the last one
     # yqiu, comment these lines
