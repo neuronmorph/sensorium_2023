@@ -297,8 +297,8 @@ def standard_trainer(
     output["validation_corr"] = validation_correlation
 
     score = np.mean(validation_correlation)
-    if use_wandb:
-        wandb.finish()
+    # if use_wandb:
+    #     wandb.finish()
 
     # removing the checkpoints except the last one
     # yqiu, comment these lines
@@ -1496,7 +1496,13 @@ def standard_trainer_reinforce_max_entropy(
             lr=lr_init_reinforce,
         )
     elif optimizer_type == "AdamW":
-        optimizer = torch.optim.AdamW(model.parameters(), lr=lr_init)
+        optimizer = torch.optim.AdamW(
+            [p for n, p in model.named_parameters() if "z_logits" not in n], lr=lr_init
+        )
+        optimizer_z = torch.optim.AdamW(
+            [p for n, p in model.named_parameters() if "z_logits" in n],
+            lr=lr_init_reinforce,
+        )
 
     # --- Baselines per readout ---
     baseline_dict = {
@@ -1694,8 +1700,8 @@ def standard_trainer_reinforce_max_entropy(
     output["validation_corr"] = validation_correlation
 
     score = np.mean(validation_correlation)
-    if use_wandb:
-        wandb.finish()
+    # if use_wandb:
+    #     wandb.finish()
 
     return score, output, model.state_dict()
 
