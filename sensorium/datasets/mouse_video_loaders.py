@@ -48,6 +48,12 @@ def mouse_video_loader(
     subsequence_length=100,
     sequence_length=300,
     random_start=None,
+    num_workers=4,
+    # pin_memory: allocates CPU tensors in page-locked memory so the DataLoader→GPU
+    # transfer is done via async DMA (faster). Safe to use even when cuda=False in
+    # ToTensor — pinning happens in the main process, not in workers.
+    # Set to False for CPU-only inference to avoid wasting pinned RAM.
+    pin_memory=True,
 ):
     """
     Symplified version of the sensorium mouse_loaders.py
@@ -193,6 +199,9 @@ def mouse_video_loader(
                         dat2,
                         sampler=sampler,
                         batch_size=batch_size if tier == "train" else 1,
+                        num_workers=num_workers,
+                        pin_memory=pin_memory,
+                        persistent_workers=num_workers > 0,
                     )
 
         else:  # perform the random sampling within each snippet
@@ -219,6 +228,9 @@ def mouse_video_loader(
                         dat3,
                         sampler=sampler,
                         batch_size=batch_size if tier == "train" else 1,
+                        num_workers=num_workers,
+                        pin_memory=pin_memory,
+                        persistent_workers=num_workers > 0,
                     )
 
         dataset_name = path.split("/")[-2]
