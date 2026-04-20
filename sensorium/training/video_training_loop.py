@@ -104,6 +104,8 @@ def standard_trainer(
             for k in kwargs.keys():
                 if k not in ["id", "index"]:
                     kwargs[k] = torch.Tensor(np.asarray(kwargs[k])).to(device)
+        else:
+            kwargs = {k: v.to(device) if isinstance(v, torch.Tensor) else v for k, v in kwargs.items()}
         model_output = model(args[0].to(device), data_key=data_key, **kwargs)
         time_left = model_output.shape[1]
 
@@ -403,6 +405,8 @@ def standard_trainer_gs(
             for k in kwargs.keys():
                 if k not in ["id", "index"]:
                     kwargs[k] = torch.Tensor(np.asarray(kwargs[k])).to(device)
+        else:
+            kwargs = {k: v.to(device) if isinstance(v, torch.Tensor) else v for k, v in kwargs.items()}
         model_output = model(args[0].to(device), data_key=data_key, **kwargs)
         time_left = model_output.shape[1]
 
@@ -735,6 +739,7 @@ def standard_trainer_reinforce_transfer_core(
         baseline_dict: dict storing moving-average baselines per data_key
         """
 
+        kwargs = {k: v.to(device) if isinstance(v, torch.Tensor) else v for k, v in kwargs.items()}
         model_output = model(args[0].to(device), data_key=data_key, **kwargs)
 
         time_left = model_output.shape[1]
@@ -1043,6 +1048,7 @@ def standard_trainer_reinforce_transfer_z_logits(
         baseline_dict: dict storing moving-average baselines per data_key
         """
 
+        kwargs = {k: v.to(device) if isinstance(v, torch.Tensor) else v for k, v in kwargs.items()}
         model_output = model(args[0].to(device), data_key=data_key, **kwargs)
 
         time_left = model_output.shape[1]
@@ -1399,6 +1405,7 @@ def standard_trainer_reinforce_max_entropy(
         baseline_dict: dict storing moving-average baselines per data_key
         """
 
+        kwargs = {k: v.to(device) if isinstance(v, torch.Tensor) else v for k, v in kwargs.items()}
         model_output = model(args[0].to(device), data_key=data_key, **kwargs)
 
         time_left = model_output.shape[1]
@@ -1797,6 +1804,8 @@ def standard_trainer_adaptive_reg(
             for k in kwargs.keys():
                 if k not in ["id", "index"]:
                     kwargs[k] = torch.Tensor(np.asarray(kwargs[k])).to(device)
+        else:
+            kwargs = {k: v.to(device) if isinstance(v, torch.Tensor) else v for k, v in kwargs.items()}
         model_output = model(args[0].to(device), data_key=data_key, **kwargs)
         time_left = model_output.shape[1]
 

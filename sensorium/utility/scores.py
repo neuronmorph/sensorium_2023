@@ -41,6 +41,7 @@ def model_predictions(
             resp = responses.detach().cpu().numpy()[:, :, skip:]
             target = target + list(resp)
             with device_state(model, device):
+                batch_kwargs = {k: v.to(device) if isinstance(v, torch.Tensor) else v for k, v in batch_kwargs.items()}
                 out = (
                     model(images.to(device), data_key=data_key, **batch_kwargs)
                     .detach()
